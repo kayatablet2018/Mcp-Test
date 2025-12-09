@@ -37,6 +37,91 @@ class SOSBoard:
             print(f"{r_idx}|{"|".join(row)}|")
         print("  " + "--" * self.size)
 
+    def check_for_sos(self, row, col):
+        # Check horizontal
+        # Case 1: S O S where (row, col) is the first S
+        if col + 2 < self.size and \
+           self.board[row][col] == 'S' and \
+           self.board[row][col+1] == 'O' and \
+           self.board[row][col+2] == 'S':
+            return True
+        # Case 2: S O S where (row, col) is the O
+        if col - 1 >= 0 and col + 1 < self.size and \
+           self.board[row][col-1] == 'S' and \
+           self.board[row][col] == 'O' and \
+           self.board[row][col+1] == 'S':
+            return True
+        # Case 3: S O S where (row, col) is the last S
+        if col - 2 >= 0 and \
+           self.board[row][col-2] == 'S' and \
+           self.board[row][col-1] == 'O' and \
+           self.board[row][col] == 'S':
+            return True
+
+        # Check vertical
+        # Case 1: (row, col) is top S
+        if row + 2 < self.size and \
+           self.board[row][col] == 'S' and \
+           self.board[row+1][col] == 'O' and \
+           self.board[row+2][col] == 'S':
+            return True
+        # Case 2: (row, col) is O
+        if row - 1 >= 0 and row + 1 < self.size and \
+           self.board[row-1][col] == 'S' and \
+           self.board[row][col] == 'O' and \
+           self.board[row+1][col] == 'S':
+            return True
+        # Case 3: (row, col) is bottom S
+        if row - 2 >= 0 and \
+           self.board[row-2][col] == 'S' and \
+           self.board[row-1][col] == 'O' and \
+           self.board[row][col] == 'S':
+            return True
+
+        # Check main diagonal (top-left to bottom-right)
+        # Case 1: (row, col) is top-left S
+        if row + 2 < self.size and col + 2 < self.size and \
+           self.board[row][col] == 'S' and \
+           self.board[row+1][col+1] == 'O' and \
+           self.board[row+2][col+2] == 'S':
+            return True
+        # Case 2: (row, col) is middle O
+        if row - 1 >= 0 and col - 1 >= 0 and \
+           row + 1 < self.size and col + 1 < self.size and \
+           self.board[row-1][col-1] == 'S' and \
+           self.board[row][col] == 'O' and \
+           self.board[row+1][col+1] == 'S':
+            return True
+        # Case 3: (row, col) is bottom-right S
+        if row - 2 >= 0 and col - 2 >= 0 and \
+           self.board[row-2][col-2] == 'S' and \
+           self.board[row-1][col-1] == 'O' and \
+           self.board[row][col] == 'S':
+            return True
+
+        # Check anti-diagonal (top-right to bottom-left)
+        # Case 1: (row, col) is top-right S
+        if row + 2 < self.size and col - 2 >= 0 and \
+           self.board[row][col] == 'S' and \
+           self.board[row+1][col-1] == 'O' and \
+           self.board[row+2][col-2] == 'S':
+            return True
+        # Case 2: (row, col) is middle O
+        if row - 1 >= 0 and col + 1 < self.size and \
+           row + 1 < self.size and col - 1 >= 0 and \
+           self.board[row-1][col+1] == 'S' and \
+           self.board[row][col] == 'O' and \
+           self.board[row+1][col-1] == 'S':
+            return True
+        # Case 3: (row, col) is bottom-left S
+        if row - 2 >= 0 and col + 2 < self.size and \
+           self.board[row-2][col+2] == 'S' and \
+           self.board[row-1][col+1] == 'O' and \
+           self.board[row][col] == 'S':
+            return True
+
+        return False
+
 
 class SOSGame:
     def __init__(self, size):
@@ -44,6 +129,7 @@ class SOSGame:
         self.current_player_char = 'S'  # 'S' for Player 1, 'O' for Player 2
         self.player_map = {'S': 'Player 1 (S)', 'O': 'Player 2 (O)'}
         self.game_over = False  # To be used for game end conditions (SOS, board full)
+        self.scores = {'S': 0, 'O': 0}
 
     def _switch_player(self):
         self.current_player_char = 'O' if self.current_player_char == 'S' else 'S'
@@ -51,7 +137,6 @@ class SOSGame:
     def _get_valid_player_input(self):
         while True:
             try:
-                print(f"\nIt's {self.player_map[self.current_player_char]}'s turn.")
                 row_str = input("Enter row (0-{}): ".format(self.board.size - 1))
                 col_str = input("Enter column (0-{}): ".format(self.board.size - 1))
                 char_input = input("Enter 'S' or 'O': ").upper()
@@ -63,7 +148,6 @@ class SOSGame:
                     print("Invalid character input. Please enter 'S' or 'O'.")
                     continue
 
-                # Ensure the player plays their assigned character
                 if char_input != self.current_player_char:
                     print(f"You must play '{self.current_player_char}' on your turn.")
                     continue
@@ -74,41 +158,65 @@ class SOSGame:
             except Exception as e:
                 print(f"An unexpected error occurred during input: {e}")
 
-    def play_turn(self):
+    def is_board_full(self):
+        return all(cell != ' ' for row in self.board.board for cell in row)
+
+    def play_turn(self) -> bool:
         self.board.display_board()
-        row, col, char = self._get_valid_player_input()
+        
+        move_successful = False
+        while not move_successful:
+            print(f"\nIt's {self.player_map[self.current_player_char]}'s turn. Current score: {self.player_map['S']}: {self.scores['S']}, {self.player_map['O']}: {self.scores['O']}")
+            
+            if self.is_board_full():
+                self.game_over = True
+                print("Board is full. Game Over.")
+                return False
 
-        success, message = self.board.make_move(row, col, char)
+            row, col, char = self._get_valid_player_input()
 
-        if success:
-            print(message)
-            # In a full game, here we would check for SOS and if the board is full
-            # For this task, we just switch player after a successful move
-            self._switch_player()
-        else:
-            print(f"Move failed: {message}")
-            # If move fails (e.g., cell occupied), the turn remains with the same player.
+            success, message = self.board.make_move(row, col, char)
+
+            if success:
+                print(message)
+                move_successful = True
+                
+                sos_found = self.board.check_for_sos(row, col)
+                if sos_found:
+                    self.scores[self.current_player_char] += 1
+                    print(f"!!! {self.player_map[self.current_player_char]} made an SOS! Score: {self.scores[self.current_player_char]} They get another turn!")
+                else:
+                    print("No SOS made. Switching player.")
+                    self._switch_player()
+            else:
+                print(f"Move failed: {message}. Please try again.")
+        
+        if self.is_board_full():
+            self.game_over = True
+            print("Board is full. Game Over.")
+            return False
+            
+        return True
 
     def start_game(self):
         print("\n--- SOS Game Started! ---")
-        # A simple loop for demonstration.
-        # In a complete game, this loop would continue until self.game_over is True
-        # which would be set by SOS detection or board full logic.
-        max_possible_moves = self.board.size * self.board.size
-        moves_made = 0
+        
+        while not self.game_over:
+            if not self.play_turn():
+                break
+        
+        print("\n--- Game Over! ---")
+        self.board.display_board()
+        print(f"Final Scores: {self.player_map['S']}: {self.scores['S']}, {self.player_map['O']}: {self.scores['O']}")
 
-        while not self.game_over and moves_made < max_possible_moves:
-            self.play_turn()
-            # A simple check for board full for demonstration
-            if all(cell != ' ' for row in self.board.board for cell in row):
-                print("\nBoard is full. It's a draw!")
-                self.game_over = True
-            moves_made += 1
-
-        if not self.game_over:
-            print("\nGame ended (for demonstration). Implement full game end conditions (SOS win/draw).")
+        if self.scores['S'] > self.scores['O']:
+            print(f"{self.player_map['S']} wins!")
+        elif self.scores['O'] > self.scores['S']:
+            print(f"{self.player_map['O']} wins!")
+        else:
+            print("It's a draw!")
 
 
 if __name__ == "__main__":
-    game = SOSGame(3)  # Create a 3x3 game
+    game = SOSGame(3)
     game.start_game()
